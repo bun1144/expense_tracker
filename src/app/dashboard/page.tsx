@@ -176,7 +176,7 @@ export default function Dashboard() {
               cy="50%"
               outerRadius={80}
               label={({ name, percent, value }) =>
-                `${name}: ฿${(value as number).toFixed(2)} (${(percent * 100).toFixed(0)}%)`
+                `${name}: ฿${(value as number).toFixed(2)} (${((percent as number) * 100).toFixed(0)}%)`
               }
             >
               {pieData.map((entry, index) => (
@@ -208,10 +208,10 @@ export default function Dashboard() {
               <tr
                 key={e.id}
                 className={`hover:bg-slate-50 transition ${e.category === "operation"
-                    ? "bg-purple-50"
-                    : e.category === "financial"
-                      ? "bg-green-50"
-                      : "bg-yellow-50"
+                  ? "bg-purple-50"
+                  : e.category === "financial"
+                    ? "bg-green-50"
+                    : "bg-yellow-50"
                   }`}
               >
                 <td className="border p-2">{e.header}</td>
