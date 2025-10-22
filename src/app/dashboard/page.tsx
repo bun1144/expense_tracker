@@ -1,94 +1,125 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
+// --- Types ---
+type Expense = {
+  id: number;
+  header: string;
+  description: string;
+  category: "operation" | "financial" | "other";
+  cost: string;
+  date: string;
+};
+
+type Summary = {
+  category: "operation" | "financial" | "other";
+  total: number;
+};
+
+// --- Component ---
 export default function Dashboard() {
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [summary, setSummary] = useState<any[]>([]);
+  const router = useRouter();
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [summary, setSummary] = useState<Summary[]>([]);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [newExpense, setNewExpense] = useState({
     header: "",
     description: "",
-    category: "",
+    category: "operation",
     cost: "",
     date: "",
   });
 
-  const loadData = async () => {
+  const COLORS = ["#4f46e5", "#16a34a", "#f59e0b"]; // Operation, Financial, Other
+
+  // --- Load Data ---
+  const loadData = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) return router.push("/");
 
-    let url = `${process.env.NEXT_PUBLIC_API_URL}/api/expense/list`;
-    if (from && to) url += `?from=${from}&to=${to}`;
+    try {
+      // Expenses
+      let url = `${process.env.NEXT_PUBLIC_API_URL}/api/expense/list`;
+      if (from && to) url += `?from=${from}&to=${to}`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setExpenses(data.expenses || []);
 
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const data = await res.json();
-    setExpenses(data.expenses || []);
-
-   let summaryUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/expense/summary`;
-if (from && to) summaryUrl += `?from=${from}&to=${to}`;
-
-const sumRes = await fetch(summaryUrl, {
-  headers: { Authorization: `Bearer ${token}` },
-});
-
-    const sumData = await sumRes.json();
-    setSummary(sumData.summary || []);
-  };
+      // Summary
+      let summaryUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/expense/summary`;
+      if (from && to) summaryUrl += `?from=${from}&to=${to}`;
+      const sumRes = await fetch(summaryUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const sumData = await sumRes.json();
+      setSummary(sumData.summary || []);
+    } catch (error) {
+      console.error(error);
+    }
+  }, [from, to, router]);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return router.push("/");
     loadData();
-  }, [from, to]);
+  }, [loadData]);
 
+  // --- Add Expense ---
   const handleAddExpense = async () => {
     const token = localStorage.getItem("token");
     if (!token) return router.push("/login");
 
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/expense/add`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(newExpense),
-    });
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/expense/add`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newExpense),
+      });
 
-    setShowModal(false);
-    setNewExpense({
-      header: "",
-      description: "",
-      category: "operation",
-      cost: "",
-      date: "",
-    });
+      setShowModal(false);
+      setNewExpense({
+        header: "",
+        description: "",
+        category: "operation",
+        cost: "",
+        date: "",
+      });
 
-    loadData();
+      loadData();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
-  const total = expenses.reduce((acc, e) => acc + parseFloat(e.cost || 0), 0);
-
-  const COLORS = ["#4f46e5", "#16a34a", "#f59e0b"]; // Operation, Financial, Other
+  const total = expenses.reduce((acc, e) => acc + parseFloat(e.cost || "0"), 0);
 
   const pieData = summary.map((s) => ({
     name: s.category,
-    value: parseFloat(s.total),
+    value: parseFloat(s.total.toString()),
   }));
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200 text-gray-800 font-sans p-8">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-blue-700 drop-shadow-sm">💰 Expense Dashboard</h1>
+        <h1 className="text-3xl font-bold text-blue-700 drop-shadow-sm">
+          💰 Expense Dashboard
+        </h1>
         <button
           onClick={() => setShowModal(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition"
@@ -135,26 +166,27 @@ const sumRes = await fetch(summaryUrl, {
 
       {/* Pie Chart */}
       <div className="w-full h-64 mb-6 bg-white shadow rounded-lg p-4">
-       <ResponsiveContainer width="100%" height={250}>
-  <PieChart>
-    <Pie
-      data={pieData}
-      dataKey="value"
-      nameKey="name"
-      cx="50%"
-      cy="50%"
-      outerRadius={80}
-      labelLine={true} // เส้นเชื่อมจาก slice ไป label
-      label={({ name, value, percent }) => `${name}: ฿${value.toFixed(2)} (${(percent * 100).toFixed(0)}%)`} // แสดงราคา + %
-    >
-      {pieData.map((entry, index) => (
-        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-      ))}
-    </Pie>
-    <Tooltip formatter={(value: number) => `฿${value.toFixed(2)}`} />
-    <Legend />
-  </PieChart>
-</ResponsiveContainer>
+        <ResponsiveContainer>
+          <PieChart>
+            <Pie
+              data={pieData}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              outerRadius={80}
+              label={({ name, percent, value }) =>
+                `${name}: ฿${value.toFixed(2)} (${(percent * 100).toFixed(0)}%)`
+              }
+            >
+              {pieData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(value: number) => `฿${value.toFixed(2)}`} />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
       </div>
 
       {/* Expenses Table */}
@@ -170,24 +202,28 @@ const sumRes = await fetch(summaryUrl, {
               <th className="border p-2">วันที่</th>
             </tr>
           </thead>
-         <tbody>
-  {expenses.map((e) => {
-    let bgClass = "";
-    if (e.category === "operation") bgClass = "bg-blue-50";
-    else if (e.category === "financial") bgClass = "bg-green-50";
-    else if (e.category === "other") bgClass = "bg-yellow-50";
-
-    return (
-      <tr key={e.id} className={`hover:bg-slate-100 transition ${bgClass}`}>
-        <td className="border p-2">{e.header}</td>
-        <td className="border p-2">{e.description}</td>
-        <td className="border p-2 capitalize">{e.category}</td>
-        <td className="border p-2 text-right">{parseFloat(e.cost).toFixed(2)}</td>
-        <td className="border p-2">{new Date(e.date).toLocaleDateString("th-TH")}</td>
-      </tr>
-    );
-  })}
-</tbody>
+          <tbody>
+            {expenses.map((e) => (
+              <tr
+                key={e.id}
+                className={`hover:bg-slate-50 transition ${
+                  e.category === "operation"
+                    ? "bg-purple-50"
+                    : e.category === "financial"
+                    ? "bg-green-50"
+                    : "bg-yellow-50"
+                }`}
+              >
+                <td className="border p-2">{e.header}</td>
+                <td className="border p-2">{e.description}</td>
+                <td className="border p-2 capitalize">{e.category}</td>
+                <td className="border p-2 text-right">{parseFloat(e.cost).toFixed(2)}</td>
+                <td className="border p-2">
+                  {new Date(e.date).toLocaleDateString("th-TH")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
         </table>
       </div>
 
