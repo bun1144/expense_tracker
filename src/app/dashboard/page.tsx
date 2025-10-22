@@ -176,13 +176,14 @@ export default function Dashboard() {
               cy="50%"
               outerRadius={80}
               label={({ name, percent, value }) =>
-                `${name}: ฿${value.toFixed(2)} (${(percent * 100).toFixed(0)}%)`
+                `${name}: ฿${(value as number).toFixed(2)} (${(percent * 100).toFixed(0)}%)`
               }
             >
               {pieData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
+
             <Tooltip formatter={(value: number) => `฿${value.toFixed(2)}`} />
             <Legend />
           </PieChart>
@@ -206,13 +207,12 @@ export default function Dashboard() {
             {expenses.map((e) => (
               <tr
                 key={e.id}
-                className={`hover:bg-slate-50 transition ${
-                  e.category === "operation"
+                className={`hover:bg-slate-50 transition ${e.category === "operation"
                     ? "bg-purple-50"
                     : e.category === "financial"
-                    ? "bg-green-50"
-                    : "bg-yellow-50"
-                }`}
+                      ? "bg-green-50"
+                      : "bg-yellow-50"
+                  }`}
               >
                 <td className="border p-2">{e.header}</td>
                 <td className="border p-2">{e.description}</td>
